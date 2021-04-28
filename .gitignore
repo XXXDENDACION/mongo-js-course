@@ -1,0 +1,16 @@
+# OSX
+#
+.DS_Store
+
+# IDEs
+#
+.vscode/
+.idea/
+.history/
+
+# node.js
+#
+node_modules/
+npm-debug.log
+package-lock.json
+.env
