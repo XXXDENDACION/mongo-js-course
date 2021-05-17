@@ -194,6 +194,9 @@ export default class MoviesDAO {
     const queryPipeline = [
       matchStage,
       sortStage,
+      skipStage,
+      limitStage,
+      facetStage
       // TODO Ticket: Faceted Search
       // Add the stages to queryPipeline in the correct order.
     ]
@@ -299,8 +302,50 @@ export default class MoviesDAO {
             _id: ObjectId(id)
           }
         }
-      ]
-      return await movies.aggregate(pipeline).next()
+      ];
+      const lookup = {
+        'from': 'comments',
+        'let': {'id': '$_id'},
+        'pipeline': [
+          { '$match':
+              { '$expr' : { '$eq': [ '$movie_id', '$$id']
+
+                }}
+          }
+        ],
+        'as': 'movie_comments'
+      }
+      const moviesAggr = await movies.aggregate([
+        {
+          '$match': {
+            '_id': ObjectId(id)
+          }
+        },
+        {
+          '$lookup': {
+            'from': 'comments',
+            'let': {
+              'id': '$_id'
+            },
+            'pipeline': [
+              {
+                '$match': {
+                  '$expr': {
+                    '$eq': [
+                      '$movie_id', '$$id'
+                    ]
+                  }
+                }
+              }, {
+                '$sort' : {'date': -1}
+              }
+            ],
+            'as': 'comments'
+          }
+        }
+      ]).next()
+      console.log(moviesAggr);
+      return moviesAggr;
     } catch (e) {
       /**
       Ticket: Error Handling
@@ -308,9 +353,12 @@ export default class MoviesDAO {
       Handle the error that occurs when an invalid ID is passed to this method.
       When this specific error is thrown, the method should return `null`.
       */
-
       // TODO Ticket: Error Handling
       // Catch the InvalidId error by string matching, and then handle it.
+      if (e.toString().match("Error: Argument passed in must be a single String of 12 bytes or a string of 24 hex characters")) {
+        return null;
+      }
+      return (e.toString());
       console.error(`Something went wrong in getMovieByID: ${e}`)
       throw e
     }
